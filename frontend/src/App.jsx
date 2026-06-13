@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import html2canvas from 'html2canvas';
+
+const api = axios.create({
+  baseURL: import.meta.env.PROD ? 'https://dashboard-vvup.onrender.com' : '/api'
+});
 import jsPDF from 'jspdf';
 import PptxGenJS from 'pptxgenjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -104,7 +108,7 @@ export default function App() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post('/api/upload', formData, {
+      const res = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(res.data);
