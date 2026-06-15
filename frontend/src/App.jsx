@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import ChartRenderer from './components/ChartRenderer';
 
-const COLORS = ['#10B981', '#34D399', '#059669', '#6EE7B7', '#047857', '#86EFAC', '#A7F3D0', '#064E3B', '#3B82F6', '#6366F1'];
+const COLORS = ['#F472B6', '#F59E0B', '#10B981', '#14B8A6', '#3B82F6', '#8B5CF6', '#EF4444', '#EAB308', '#6366F1', '#06B6D4', '#EC4899', '#84CC16'];
 
 function formatNumber(n) {
   if (typeof n !== 'number') return n;
@@ -142,48 +142,157 @@ export default function App() {
 
   const downloadPPT = () => {
     if (!result) return;
-    const pptx = new PptxGenJS();
-    pptx.layout = 'LAYOUT_16x9';
-    pptx.defineSlideMaster({
-      title: 'MASTER_SLIDE',
-      background: { color: 'F8FAFC' },
-      objects: [{ rect: { x: 0, y: 0, w: '100%', h: 0.75, fill: { color: '059669' } } }]
-    });
-
-    const slide1 = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-    slide1.addText('Dashboard Summary', { x: 0.5, y: 0.2, fontSize: 24, color: 'FFFFFF', bold: true });
-    if (result.dashboard) {
-      const d = result.dashboard;
-      slide1.addText(`Total Rows: ${d.rowCount || 0}`, { x: 0.5, y: 1.2, fontSize: 16 });
-      slide1.addText(`Columns: ${(d.columns || []).join(', ')}`, { x: 0.5, y: 1.8, fontSize: 14, w: 9 });
-    }
-
-    if (result.dashboard?.chartData) {
-      result.dashboard.chartData.forEach((chart) => {
-        const s = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
-        s.addText(chart.title, { x: 0.5, y: 0.2, fontSize: 20, color: 'FFFFFF', bold: true });
-        if (chart.chartType === 'bar' || chart.chartType === 'groupedBar') {
-          const cats = chart.data.map(d => d[chart.xKey]);
-          const vals = chart.keys
-            ? chart.keys.map(k => ({ name: k, labels: cats, values: chart.data.map(d => d[k]) }))
-            : [{ name: chart.yKey, labels: cats, values: chart.data.map(d => d[chart.yKey]) }];
-          s.addChart(pptx.ChartType.bar, { x: 0.5, y: 1, w: 9, h: 4.5, chartColors: COLORS, barDir: 'col', data: vals });
-        } else if (chart.chartType === 'horizontalBar') {
-          const cats = chart.data.map(d => d[chart.xKey]);
-          const vals = [{ name: chart.yKey, labels: cats, values: chart.data.map(d => d[chart.yKey]) }];
-          s.addChart(pptx.ChartType.bar, { x: 0.5, y: 1, w: 9, h: 4.5, chartColors: COLORS, barDir: 'bar', data: vals });
-        } else if (chart.chartType === 'pie') {
-          const data = chart.data.map(d => ({ name: d.name, values: [d.value] }));
-          s.addChart(pptx.ChartType.pie, { x: 0.5, y: 1, w: 9, h: 4.5, chartColors: COLORS, data });
-        } else if (chart.chartType === 'line') {
-          const cats = chart.data.map(d => d[chart.xKey]);
-          const vals = [{ name: chart.yKey, labels: cats, values: chart.data.map(d => d[chart.yKey]) }];
-          s.addChart(pptx.ChartType.line, { x: 0.5, y: 1, w: 9, h: 4.5, chartColors: COLORS, data: vals });
-        }
+    try {
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_16x9';
+      pptx.defineSlideMaster({
+        title: 'MASTER_SLIDE',
+        background: { color: 'FFFFFF' },
+        objects: [
+          { rect: { x: 0, y: 0, w: '100%', h: 0.7, fill: { color: '1E293B' } } },
+          { rect: { x: 0, y: 6.8, w: '100%', h: 0.4, fill: { color: '1E293B' } } }
+        ]
       });
-    }
 
-    pptx.writeFile({ fileName: 'dashboard.pptx' });
+      // --- TITLE SLIDE ---
+      const titleSlide = pptx.addSlide();
+      titleSlide.background = { color: 'F1F5F9' };
+      titleSlide.addText('Dashboard Analytics Report', { x: 1, y: 2.5, w: 8, fontSize: 36, color: '1E293B', bold: true, align: 'center' });
+      titleSlide.addText(`Generated on ${new Date().toLocaleDateString()}`, { x: 1, y: 3.3, w: 8, fontSize: 16, color: '64748B', align: 'center' });
+      if (result.dashboard) {
+        const d = result.dashboard;
+        titleSlide.addText(`${d.rowCount || 0} Records  |  ${(d.columns || []).length} Columns`, { x: 1, y: 4.0, w: 8, fontSize: 14, color: '475569', align: 'center' });
+      }
+
+      // --- SUMMARY SLIDE ---
+      const d = result.dashboard;
+      if (d) {
+        const sumSlide = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+        sumSlide.addText('Key Metrics Summary', { x: 0.5, y: 0.15, fontSize: 22, color: 'FFFFFF', bold: true });
+        const keys = d.numericCols || [];
+        const stats = keys.length ? d.summary[keys[0]] : null;
+        const kpiData = [
+          { label: 'Total Rows', value: d.rowCount || 0, x: 0.5, color: '3B82F6' },
+          { label: 'Total Sum', value: stats ? formatNumber(stats.sum || 0) : 'N/A', x: 3.5, color: '10B981' },
+          { label: 'Average', value: stats ? formatNumber(stats.avg || 0) : 'N/A', x: 6.5, color: 'F59E0B' }
+        ];
+        kpiData.forEach(kpi => {
+          sumSlide.addShape(pptx.ShapeType.rect, { x: kpi.x, y: 1.2, w: 2.5, h: 1.6, fill: { color: kpi.color } });
+          sumSlide.addText(String(kpi.value), { x: kpi.x, y: 1.4, w: 2.5, fontSize: 20, color: 'FFFFFF', bold: true, align: 'center' });
+          sumSlide.addText(kpi.label, { x: kpi.x, y: 2.1, w: 2.5, fontSize: 12, color: 'FFFFFF', align: 'center' });
+        });
+        sumSlide.addText('Columns: ' + (d.columns || []).join(', '), { x: 0.5, y: 3.3, fontSize: 14, color: '334155', w: 9 });
+        sumSlide.addText('Numeric Columns: ' + (d.numericCols || []).join(', '), { x: 0.5, y: 3.8, fontSize: 12, color: '475569', w: 9 });
+        sumSlide.addText('Categorical Columns: ' + (d.categoricalCols || []).join(', '), { x: 0.5, y: 4.2, fontSize: 12, color: '475569', w: 9 });
+      }
+
+      // --- CHART SLIDES ---
+      if (d?.chartData) {
+        d.chartData.forEach((chart, idx) => {
+          try {
+            if (!chart.data || !Array.isArray(chart.data) || chart.data.length === 0) return;
+
+            const s = pptx.addSlide({ masterName: 'MASTER_SLIDE' });
+            s.addText(chart.title || 'Chart', { x: 0.5, y: 0.15, fontSize: 20, color: 'FFFFFF', bold: true });
+
+            // Build chart description
+            let desc = '';
+            if (chart.chartType === 'bar') {
+              const top = chart.data[0];
+              const last = chart.data[chart.data.length - 1];
+              desc = `This bar chart compares ${chart.xKey} against ${chart.yKey}. The highest value is ${formatNumber(top[chart.yKey])} (${top[chart.xKey]}) and the lowest is ${formatNumber(last[chart.yKey])} (${last[chart.xKey]}).`;
+            } else if (chart.chartType === 'pie') {
+              const top = chart.data[0];
+              const total = chart.data.reduce((a, c) => a + (Number(c.value) || 0), 0);
+              desc = `This pie chart shows the distribution. ${top.name} represents the largest share at ${total ? ((top.value / total) * 100).toFixed(1) : 0}% of the total.`;
+            } else if (chart.chartType === 'horizontalBar') {
+              const top = chart.data[0];
+              desc = `This horizontal bar chart compares ${chart.xKey} by ${chart.yKey}. Leading category: ${top[chart.xKey]} with ${formatNumber(top[chart.yKey])}.`;
+            } else if (chart.chartType === 'line') {
+              desc = `This line chart tracks ${chart.yKey} over ${chart.xKey} to visualize trends across time.`;
+            } else if (chart.chartType === 'groupedBar') {
+              desc = `This grouped bar chart compares multiple metrics (${(chart.keys || []).join(', ')}) across ${chart.xKey}.`;
+            }
+            s.addText(desc, { x: 0.5, y: 6.0, w: 9, fontSize: 11, color: '475569', italic: true });
+
+            // Helper to sanitize chart data
+            const makeLabels = (arr, key) => arr.map(d => String(d[key] || 'Unknown').slice(0, 20));
+            const makeValues = (arr, key) => arr.map(d => {
+              const v = Number(d[key]);
+              return isNaN(v) ? 0 : v;
+            });
+
+            // Chart data formatting
+            if (chart.chartType === 'bar' || chart.chartType === 'groupedBar') {
+              const cats = makeLabels(chart.data, chart.xKey);
+              const hasKeys = Array.isArray(chart.keys) && chart.keys.length > 0;
+              const vals = hasKeys
+                ? chart.keys.map(k => ({ name: String(k), labels: cats, values: makeValues(chart.data, k) }))
+                : [{ name: String(chart.yKey), labels: cats, values: makeValues(chart.data, chart.yKey) }];
+
+              if (vals.length > 0 && vals[0].values.length > 0) {
+                s.addChart(pptx.ChartType.bar, {
+                  x: 0.5, y: 1.0, w: 9, h: 4.5,
+                  barDir: 'col',
+                  chartColors: COLORS,
+                  showValue: true,
+                  dataLabelColor: '334155',
+                  dataLabelFontSize: 9,
+                  data: vals
+                });
+              }
+            } else if (chart.chartType === 'horizontalBar') {
+              const cats = makeLabels(chart.data, chart.xKey);
+              const vals = [{ name: String(chart.yKey), labels: cats, values: makeValues(chart.data, chart.yKey) }];
+              if (vals[0].values.length > 0) {
+                s.addChart(pptx.ChartType.bar, {
+                  x: 0.5, y: 1.0, w: 9, h: 4.5,
+                  barDir: 'bar',
+                  chartColors: COLORS,
+                  showValue: true,
+                  dataLabelColor: '334155',
+                  dataLabelFontSize: 9,
+                  data: vals
+                });
+              }
+            } else if (chart.chartType === 'pie') {
+              const labels = chart.data.map(d => String(d.name || 'Unknown').slice(0, 20));
+              const values = chart.data.map(d => {
+                const v = Number(d.value);
+                return isNaN(v) ? 0 : v;
+              });
+              if (values.length > 0) {
+                s.addChart(pptx.ChartType.pie, {
+                  x: 0.5, y: 1.0, w: 9, h: 4.5,
+                  chartColors: COLORS,
+                  showPercent: true,
+                  showValue: false,
+                  data: [{ name: String(chart.title || 'Pie'), labels, values }]
+                });
+              }
+            } else if (chart.chartType === 'line') {
+              const cats = makeLabels(chart.data, chart.xKey);
+              const vals = [{ name: String(chart.yKey), labels: cats, values: makeValues(chart.data, chart.yKey) }];
+              if (vals[0].values.length > 0) {
+                s.addChart(pptx.ChartType.line, {
+                  x: 0.5, y: 1.0, w: 9, h: 4.5,
+                  chartColors: COLORS,
+                  lineDataSymbol: 'circle',
+                  data: vals
+                });
+              }
+            }
+          } catch (chartErr) {
+            console.warn(`Chart ${idx} (${chart.chartType}) failed:`, chartErr);
+          }
+        });
+      }
+
+      pptx.writeFile({ fileName: 'dashboard-report.pptx' });
+    } catch (err) {
+      console.error('PPT generation failed:', err);
+      setError('Failed to generate PPT: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const downloadHTML = () => {

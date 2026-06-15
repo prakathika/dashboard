@@ -1,9 +1,9 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell, LineChart, Line, LabelList
 } from 'recharts';
 
-const COLORS = ['#10B981', '#34D399', '#059669', '#6EE7B7', '#047857', '#86EFAC', '#A7F3D0', '#064E3B', '#3B82F6', '#6366F1'];
+const COLORS = ['#F472B6', '#F59E0B', '#10B981', '#14B8A6', '#3B82F6', '#8B5CF6', '#EF4444', '#EAB308', '#6366F1', '#06B6D4', '#EC4899', '#84CC16'];
 
 function formatNumber(n) {
   if (typeof n !== 'number') return n;
@@ -55,7 +55,11 @@ export default function ChartRenderer({ chart, index }) {
               <XAxis dataKey={chart.xKey} tick={{ fontSize: 11 }} interval={0} angle={chart.data.length > 6 ? 45 : 0} textAnchor={chart.data.length > 6 ? 'start' : 'middle'} height={chart.data.length > 6 ? 60 : 30} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey={chart.yKey} fill={color} radius={[4, 4, 0, 0]} />
+              <Bar dataKey={chart.yKey} radius={[4, 4, 0, 0]}>
+                {chart.data.map((_, i) => (
+                  <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -74,7 +78,12 @@ export default function ChartRenderer({ chart, index }) {
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis dataKey={chart.xKey} type="category" tick={{ fontSize: 11 }} width={100} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey={chart.yKey} fill={color} radius={[0, 4, 4, 0]} />
+              <Bar dataKey={chart.yKey} radius={[0, 4, 4, 0]}>
+                {chart.data.map((_, i) => (
+                  <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                ))}
+                <LabelList dataKey={chart.yKey} position="right" formatter={(v) => formatNumber(v)} style={{ fontSize: 10, fill: '#475569' }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -83,6 +92,18 @@ export default function ChartRenderer({ chart, index }) {
   }
 
   if (chart.chartType === 'pie') {
+    const RADIAN = Math.PI / 180;
+    const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+      const radius = outerRadius + 18;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      const label = `${name} ${(percent * 100).toFixed(1)}%`;
+      return (
+        <text x={x} y={y} fill="#475569" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={500}>
+          {label}
+        </text>
+      );
+    };
     return (
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 h-full">
         <h3 className="text-sm font-semibold text-slate-700 mb-4">{title}</h3>
@@ -93,18 +114,19 @@ export default function ChartRenderer({ chart, index }) {
                 data={chart.data}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={90}
-                paddingAngle={3}
+                innerRadius={45}
+                outerRadius={70}
+                paddingAngle={2}
                 dataKey={chart.valueKey}
                 nameKey={chart.nameKey}
+                labelLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                label={renderLabel}
               >
                 {chart.data.map((entry, i) => (
                   <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip content={<PieTooltip />} />
-              <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
